@@ -100,25 +100,25 @@
     <script>
         function ViewModel() {
             var self = this;
-
+    
             self.stations = ko.observableArray([]);
             self.bikes = ko.observableArray([]);
             self.filterText = ko.observable('');
-            
+    
             self.filteredStations = ko.computed(function() {
-                var filter = self.filterText().toLowerCase();
-                return ko.utils.arrayFilter(self.stations(), function(station) {
-                    return station.name.toLowerCase().indexOf(filter) !== -1; // Filtreleme
-                });
-            });
+    var filter = self.filterText().toLowerCase();
+    return JSLINQ(self.stations()).Where(function(station) {
+        return station.name.toLowerCase().indexOf(filter) !== -1; // Custom filter
+    }).ToArray(); 
+});
 
-            self.filteredBikes = ko.computed(function() {
-                var filter = self.filterText().toLowerCase();
-                return ko.utils.arrayFilter(self.bikes(), function(bike) {
-                    return bike.stationName.toLowerCase().indexOf(filter) !== -1; 
-                });
-            });
-
+self.filteredBikes = ko.computed(function() {
+    var filter = self.filterText().toLowerCase();
+    return JSLINQ(self.bikes()).Where(function(bike) {
+        return bike.stationName.toLowerCase().indexOf(filter) !== -1; // Custom filter
+    }).ToArray(); 
+});
+    
             self.loadData = function() {
                 fetch('https://localhost:7082/api/Stations')
                     .then(response => response.json())
@@ -133,7 +133,7 @@
                         console.error('İstasyonları yüklerken hata:', error);
                     });
             };
-
+    
             self.loadBikes = function() {
                 fetch('https://localhost:7082/api/Bikes')
                     .then(response => response.json())
@@ -152,16 +152,15 @@
                         console.error('Bisikletleri yüklerken hata:', error);
                     });
             };
-
-          
+    
             self.updateChart = function() {
                 var chartDom = document.getElementById('chartContainer');
                 var myChart = echarts.init(chartDom);
                 var option;
-
+    
                 const labels = self.filteredStations().map(s => s.name); 
                 const data = self.filteredStations().map(s => s.bikeCount); 
-
+    
                 option = {
                     title: {
                         text: 'İstasyonlardaki Bisiklet Sayısı',
@@ -204,18 +203,19 @@
                         containLabel: true
                     }
                 };
-
+    
                 option && myChart.setOption(option);
             };
         }
-
+    
         var viewModel = new ViewModel();
         ko.applyBindings(viewModel);
         viewModel.loadData(); 
-
+    
         viewModel.filterText.subscribe(function() {
             viewModel.updateChart();
         });
     </script>
+    
 </body>
 </html>
