@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bisiklet ve İstasyon Listesi</title>
+    <script src="JSLINQ.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/knockout/3.5.1/knockout-min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/knockout@3.5.1/build/output/knockout-latest.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts/dist/echarts.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+
+        h1, h2 {
+            margin: 20px;
+        }
+
+        .table-container {
+            display: flex;
+            justify-content: space-around; 
+            margin-top: 20px;
+        }
+
+        table {
+            width: 45%; 
+            border-collapse: collapse;
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f2f2f2;
+        }
+
+        #chartContainer {
+            width: calc(100% - 40px);
+            height: 600px;
+            padding-bottom: 20px;
+            margin: 20px;
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+        }
+    </style>
+</head>
+<body>
+    <h1>İstasyonlardaki Bisiklet Sayısı</h1>
+    
+    <label for="stationFilter">Filtrele:</label>
+    <input type="text" id="stationFilter" data-bind="value: filterText, valueUpdate: 'input'" placeholder="Arama yapabilirsiniz">
+
+    <div id="chartContainer"></div>
+
+    <h2>İstasyon ve Bisiklet Listesi</h2>
+    <div class="table-container">
+        <table id="stationsTable">
+            <thead>
+                <tr>
+                    <th>İstasyon ID</th>
+                    <th>İstasyon Adı</th>
+                    <th>Bisiklet Sayısı</th>
+                </tr>
+            </thead>
+            <tbody data-bind="foreach: filteredStations">
+                <tr>
+                    <td data-bind="text: stationId"></td>
+                    <td data-bind="text: name"></td>
+                    <td data-bind="text: bikeCount"></td>
+                </tr>
+            </tbody>
+        </table>
+
+        <table id="bikesTable">
+            <thead>
+                <tr>
+                    <th>Bisiklet ID</th>
+                    <th>Bisiklet Adı</th>
+                    <th>İstasyon ID</th>
+                    <th>İstasyon Adı</th>
+                </tr>
+            </thead>
+            <tbody data-bind="foreach: filteredBikes">
+                <tr>
+                    <td data-bind="text: bikeId"></td>
+                    <td data-bind="text: name"></td>
+                    <td data-bind="text: stationId"></td>
+                    <td data-bind="text: stationName"></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        function ViewModel() {
+            var self = this;
+
+            self.stations = ko.observableArray([]);
+            self.bikes = ko.observableArray([]);
+            self.filterText = ko.observable('');
+            
+            self.filteredStations = ko.computed(function() {
+                var filter = self.filterText().toLowerCase();
+                return ko.utils.arrayFilter(self.stations(), function(station) {
+                    return station.name.toLowerCase().indexOf(filter) !== -1; // Filtreleme
+                });
+            });
+
+            self.filteredBikes = ko.computed(function() {
+                var filter = self.filterText().toLowerCase();
+                return ko.utils.arrayFilter(self.bikes(), function(bike) {
+                    return bike.stationName.toLowerCase().indexOf(filter) !== -1; 
+                });
+            });
+
+            self.loadData = function() {
+                fetch('https://localhost:7082/api/Stations')
+                    .then(response => response.json())
+                    .then(stations => {
+                        self.stations(stations.map(station => {
+                            station.bikeCount = 0; 
+                            return station;
+                        }));
+                        self.loadBikes();
+                    })
+                    .catch(error => {
+                        console.error('İstasyonları yüklerken hata:', error);
+                    });
+            };
+
+            self.loadBikes = function() {
+                fetch('https://localhost:7082/api/Bikes')
+                    .then(response => response.json())
+                    .then(bikes => {
+                        self.bikes(bikes.map(bike => {
+                            const station = self.stations().find(s => s.stationId === bike.stationId);
+                            bike.stationName = station ? station.name : 'Bilinmiyor'; 
+                            if (station) {
+                                station.bikeCount += 1; 
+                            }
+                            return bike;
+                        }));
+                        self.updateChart(); 
+                    })
+                    .catch(error => {
+                        console.error('Bisikletleri yüklerken hata:', error);
+                    });
+            };
+
+          
+            self.updateChart = function() {
+                var chartDom = document.getElementById('chartContainer');
+                var myChart = echarts.init(chartDom);
+                var option;
+
+                const labels = self.filteredStations().map(s => s.name); 
+                const data = self.filteredStations().map(s => s.bikeCount); 
+
+                option = {
+                    title: {
+                        text: 'İstasyonlardaki Bisiklet Sayısı',
+                        left: 'center'
+                    },
+                    tooltip: {
+                        trigger: 'item'
+                    },
+                    xAxis: {
+                        type: 'category',
+                        data: labels,
+                        axisLabel: {
+                            interval: 0,
+                            rotate: 45,
+                            fontSize: 12,
+                            margin: 20
+                        },
+                        name: 'İstasyonlar',
+                        nameLocation: 'middle',
+                        nameGap: 30
+                    },
+                    yAxis: {
+                        type: 'value'
+                    },
+                    series: [
+                        {
+                            name: 'Bisiklet Sayısı',
+                            type: 'bar',
+                            data: data,
+                            itemStyle: {
+                                color: '#42b983'
+                            }
+                        }
+                    ],
+                    grid: {
+                        left: '3%',
+                        right: '4%',
+                        bottom: '10%',
+                        top: '20%',
+                        containLabel: true
+                    }
+                };
+
+                option && myChart.setOption(option);
+            };
+        }
+
+        var viewModel = new ViewModel();
+        ko.applyBindings(viewModel);
+        viewModel.loadData(); 
+
+        viewModel.filterText.subscribe(function() {
+            viewModel.updateChart();
+        });
+    </script>
+</body>
+</html>
