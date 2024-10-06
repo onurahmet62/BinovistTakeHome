@@ -1,0 +1,6 @@
+@BinovistTask1_HostAddress = http://localhost:5188
+
+GET {{BinovistTask1_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

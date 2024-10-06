@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Bisiklet Ekle</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/knockout/3.5.1/knockout-min.js"></script>
+</head>
+<body>
+    <div>
+        <h1>Bisiklet Ekle</h1>
+        <form data-bind="submit: submitForm">
+            <label>Bisiklet Adı:</label>
+            <input type="text" data-bind="value: bikeName" required />
+            <br/>
+
+            <label>Durak Seçimi:</label>
+            <select data-bind="options: stations, value: selectedStation, optionsText: 'name'" required></select>
+            <br/>
+
+            <button type="submit">Bisikleti Ekle</button>
+        </form>
+    </div>
+
+    <script type="text/javascript">
+        function BikeViewModel() {
+            var self = this;
+
+            // Bike adı ve durak seçimi için observable'lar
+            self.bikeName = ko.observable('');
+            self.selectedStation = ko.observable();
+
+            // Durağın listesini bir API'den ya da sabit JSON'dan alabilirsiniz.
+            self.stations = ko.observableArray([
+                { station_id: 'hub_290', name: 'P127 Central Ave / Roosevelt St' },
+                { station_id: 'hub_297', name: 'P131 Central Ave / Willetta St' }
+            ]);
+
+            // Form submit olduğunda tetiklenecek fonksiyon
+            self.submitForm = function() {
+                // Basit bir validasyon (name ve station seçimi zorunlu)
+                if (!self.bikeName() || !self.selectedStation()) {
+                    alert('Bisiklet adi ve durak seçimi zorunludur.');
+                    return;
+                }
+
+                // POST isteği ile API'ye veriyi gönderme
+                fetch('https://localhost:7082/api/Bikes', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        BikeId: Math.random().toString(36).substring(7), // Rastgele bir BikeId oluşturabiliriz.
+                        Name: self.bikeName(),
+                        StationId: self.selectedStation().station_id,
+                        Lon: 0, // Sabit değer
+                        Lat: 0, // Sabit değer
+                        IsReserved: 0,
+                        IsDisabled: 0
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    alert('Başarıyla eklendi: ' + JSON.stringify(data));
+                })
+                .catch(error => {
+                    console.error('Hata:', error);
+                });
+            };
+        }
+
+        // KnockoutJS binding
+        ko.applyBindings(new BikeViewModel());
+    </script>
+</body>
+</html>
