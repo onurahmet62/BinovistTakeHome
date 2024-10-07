@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bisiklet Listesi</title>
+    <script src="https://cdn.jsdelivr.net/npm/knockout@3.5.1/build/output/knockout-latest.js"></script>
+    <script src="JSLINQ.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+    
+        h1, h2 {
+            margin: 20px;
+        }
+    
+        /* Menü stilleri */
+        #menu {
+            background-color: #4CAF50; /* Menü arka plan rengi */
+            overflow: hidden;
+        }
+    
+        nav {
+            display: flex;
+            justify-content: center;
+            padding: 10px 0;
+        }
+    
+        nav ul {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+        }
+    
+        nav ul li {
+            display: inline;
+            margin: 0 15px;
+        }
+    
+        nav ul li a {
+            color: white; 
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            transition: background-color 0.3s, color 0.3s; 
+        }
+    
+        nav ul li a:hover {
+            background-color: #45a049; 
+            color: white; 
+        }
+
+        
+        .search-container {
+            display: flex;
+            justify-content: center;
+            margin: 20px;
+        }
+
+        .search-container input {
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            width: 300px;
+            transition: border-color 0.3s;
+        }
+
+        .search-container input:focus {
+            border-color: #4CAF50;
+            outline: none;
+        }
+
+        .search-container button {
+            padding: 10px 15px;
+            margin-left: 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .search-container button:hover {
+            background-color: #45a049;
+        }
+
+        
+        .result-message {
+            text-align: center;
+            color: #888;
+        }
+
+        .loading, .error {
+            text-align: center;
+            color: red;
+        }
+    </style>
+</head>
+
+<body>
+    <header id="menu">
+        <nav>
+            <ul>
+                <li><a href="Grafik.html">Grafik</a></li>
+                <li><a href="arama.html">Bisiklet Ara</a></li>
+                <li><a href="bisikletEkle.html">Bisiklet Ekle</a></li>
+            </ul>
+        </nav>
+    </header>
+    <div>
+        <h1>Bisiklet Listesi</h1>
+        <div class="search-container">
+            <input type="text" data-bind="value: searchTerm, valueUpdate: 'input'" placeholder="Ara..." aria-label="Bisiklet Ara" />
+            <button data-bind="click: searchBikes">Ara</button>
+        </div>
+        <p data-bind="visible: loading" class="loading">Yükleniyor...</p>
+        <p data-bind="visible: errorMessage, text: errorMessage" class="error"></p>
+        <ul data-bind="foreach: bikes">
+            <li data-bind="text: Name"></li>
+        </ul>
+        <p data-bind="visible: !bikes().length && !loading()" class="result-message">Sonuç yok</p>
+    </div>
+
+    <script type="text/javascript">
+        function Bike(id, name) {
+            this.BikeId = id;
+            this.Name = name;
+        }
+
+        function BikeViewModel() {
+            var self = this;
+
+            self.searchTerm = ko.observable('');
+            self.bikes = ko.observableArray([]);
+            self.allBikes = ko.observableArray([]);
+            self.loading = ko.observable(false);
+            self.errorMessage = ko.observable('');
+
+            self.loadBikes = function() {
+                self.loading(true);
+                self.errorMessage('');
+
+                fetch('https://localhost:7082/api/Bikes')
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Ağ yanıtı uygun değil');
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        console.log('Yüklenen Bisikletler:', data);
+                        self.allBikes(data.map(b => new Bike(b.bikeId, b.name)));
+                        self.bikes(self.allBikes());
+                    })
+                    .catch(error => {
+                        console.error('Hata:', error);
+                        self.errorMessage('Bisikletler yüklenirken hata oluştu.');
+                    })
+                    .finally(() => {
+                        self.loading(false);
+                    });
+            };
+
+            self.searchBikes = function() {
+                const searchValue = self.searchTerm().toLowerCase();
+                const allBikesArray = self.allBikes();
+
+                const filteredBikes = jslinq(allBikesArray)
+                    .where(function(bike) {
+                        return bike.Name.toLowerCase().includes(searchValue);
+                    })
+                    .toArray();
+
+                console.log('Arama Sonucu:', filteredBikes);
+                self.bikes(filteredBikes);
+            };
+
+            self.loadBikes();
+
+           
+            self.searchTerm.subscribe(function() {
+                self.searchBikes();
+            });
+        }
+
+        ko.applyBindings(new BikeViewModel());
+    </script>
+</body>
+
+</html>

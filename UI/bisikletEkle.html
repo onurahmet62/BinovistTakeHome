@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bisiklet Ekle</title>
+    <script src="https://cdn.jsdelivr.net/npm/knockout@3.5.1/build/output/knockout-latest.js"></script>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f9f9f9; 
+        }
+
+        h1 {
+            text-align: center;
+            margin: 20px 0;
+            color: #333;
+        }
+
+        
+        #menu {
+            background-color: #4CAF50; 
+            overflow: hidden;
+        }
+
+        nav {
+            display: flex;
+            justify-content: center;
+            padding: 10px 0;
+        }
+
+        nav ul {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        nav ul li {
+            display: inline;
+            margin: 0 15px;
+        }
+
+        nav ul li a {
+            color: white;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            transition: background-color 0.3s, color 0.3s; 
+        }
+
+        nav ul li a:hover {
+            background-color: #45a049; 
+            color: white; 
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 30px auto; 
+            padding: 20px;
+            background-color: white; 
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); 
+        }
+
+        form {
+            display: flex;
+            flex-direction: column;
+        }
+
+        label {
+            margin-bottom: 5px;
+            font-weight: bold; 
+        }
+
+        input[type="text"], select {
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ccc; 
+            border-radius: 4px; 
+        }
+
+        button {
+            padding: 10px;
+            background-color: #4CAF50; 
+            color: white; 
+            border: none; 
+            border-radius: 4px; 
+            cursor: pointer;
+            font-size: 16px; 
+            transition: background-color 0.3s; 
+        }
+        button:hover {
+            background-color: #45a049; 
+
+        
+        }
+
+        
+
+        .message {
+            text-align: center;
+            margin-top: 20px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div id="menu">
+        <header>
+            <nav>
+                <ul>
+                    <li><a href="Grafik.html">Grafik</a></li>
+                    <li><a href="arama.html">Bisiklet Ara</a></li>
+                    <li><a href="bisikletEkle.html">Bisiklet Ekle</a></li>
+                </ul>
+            </nav>
+        </header>
+    </div>
+
+    <div class="container">
+        <h1>Bisiklet Ekle</h1>
+        <form data-bind="submit: submitForm">
+            <label>Bisiklet Adı:</label>
+            <input type="text" data-bind="value: bikeName" required />
+            <label>Durak Seçimi:</label>
+            <select data-bind="options: stations, value: selectedStation, optionsText: 'name'" required></select>
+            <button type="submit">Bisikleti Ekle</button>
+        </form>
+
+       
+        <div class="message" data-bind="visible: messageVisible, text: messageText"></div>
+    </div>
+
+  
+
+    <script type="text/javascript">
+        function BikeViewModel() {
+            var self = this;
+
+            self.bikeName = ko.observable('');
+            self.selectedStation = ko.observable();
+            self.stations = ko.observableArray([]);
+           
+            self.messageVisible = ko.observable(false); 
+            self.messageText = ko.observable(''); 
+
+            fetch('https://localhost:7082/api/Stations')
+                .then(response => response.json())
+                .then(data => {
+                    const uniqueStations = Array.from(new Set(data.map(station => station.name)))
+                        .map(name => {
+                            const foundStation = data.find(station => station.name === name);
+                            return {
+                                name: name,
+                                stationId: foundStation ? foundStation.stationId : null 
+                            };
+                        });
+
+                    self.stations(uniqueStations); 
+                })
+                .catch(error => {
+                    console.error('Durağı yüklerken hata:', error);
+                });
+
+                self.submitForm = function() {
+    if (!self.bikeName() || !self.selectedStation()) {
+        alert('Bisiklet adı ve durak seçimi zorunludur.');
+        return;
+    }
+
+    const bikeData = {
+        BikeId: Math.random().toString(36).substring(7), 
+        Name: self.bikeName(),
+        StationId: self.selectedStation().stationId
+    };
+
+    fetch('https://localhost:7082/api/Bikes', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(bikeData)
+    })
+    .then(response => {
+        if (response.ok) {
+           
+            self.messageVisible(true); 
+            self.messageText('Bisiklet başarıyla eklendi.'); 
+
+           
+            self.bikeName(''); 
+
+            
+            setTimeout(() => {
+                self.messageVisible(false);
+            }, 3000);
+        } else {
+            throw new Error('Bisiklet eklenirken bir hata oluştu.');
+        }
+    })
+    .catch(error => {
+        console.error('Hata:', error);
+        self.messageVisible(true); 
+        self.messageText('Bisiklet eklenirken bir hata oluştu.'); 
+    });
+};
+
+
+          
+        }
+
+        ko.applyBindings(new BikeViewModel());
+    </script>
+</body>
+</html>
